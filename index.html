@@ -1,0 +1,2546 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>독서 문장 아카이브 | Reading Log</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome CDN -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+  />
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body class="min-h-screen bg-stone-50 text-stone-900 antialiased selection:bg-stone-900 selection:text-white">
+  <div class="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+    <!-- 최상단 앱 타이틀 & 최근 문장 입력 도서 표시 -->
+    <header class="mb-8 space-y-6">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3.5">
+          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-stone-900 text-white">
+            <i class="fa-solid fa-book-open text-sm"></i>
+          </div>
+          <div>
+            <h1 class="text-xl font-semibold tracking-tight text-stone-900 sm:text-2xl">
+              Reading Archive
+            </h1>
+            <p class="text-xs text-stone-500">
+              인상적인 문장 수집 및 도서별 데이터베이스
+            </p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-xs font-medium text-stone-600">
+            <i class="fa-solid fa-layer-group text-stone-400"></i>
+            <span id="totalBooksStat">도서 0권</span>
+          </span>
+          <span class="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-xs font-medium text-stone-600">
+            <i class="fa-solid fa-quote-left text-stone-400"></i>
+            <span id="totalQuotesStat">문장 0개</span>
+          </span>
+          <button
+            id="syncModalBtn"
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-xs font-medium text-stone-700 transition hover:border-stone-300 hover:bg-stone-100 active:scale-[0.99]"
+          >
+            <span id="syncStatusDot" class="h-2 w-2 rounded-full bg-stone-300"></span>
+            <i class="fa-brands fa-google-drive text-stone-500"></i>
+            <span id="syncStatusLabel">드라이브 동기화</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 상단 스포트라이트: 가장 최근 문장을 입력한 책제목 & 저자 -->
+      <section class="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm sm:p-7">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <span class="inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1 text-[11px] font-medium text-stone-600">
+            <i class="fa-solid fa-clock-rotate-left text-[10px]"></i>
+            최근 문장을 입력한 책
+          </span>
+          <span id="spotlightMeta" class="text-xs text-stone-400"></span>
+        </div>
+
+        <div id="spotlightContent" class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div class="min-w-0 flex-1">
+            <h2 id="spotlightTitle" class="text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl">
+              등록된 도서가 없습니다
+            </h2>
+            <p class="mt-1.5 flex items-center gap-2 text-sm text-stone-500">
+              <i class="fa-solid fa-feather-pointed text-xs text-stone-400"></i>
+              <span id="spotlightAuthor">아래에서 첫 번째 책을 등록해 보세요</span>
+            </p>
+            <div id="spotlightQuoteBox" class="mt-3.5 hidden rounded-xl border border-stone-200/70 bg-stone-50/80 px-4 py-3">
+              <div class="mb-1 flex items-center gap-2 text-[11px] font-medium text-stone-500">
+                <i class="fa-regular fa-bookmark text-[10px] text-stone-400"></i>
+                <span id="spotlightQuotePage"></span>
+              </div>
+              <p id="spotlightQuoteText" class="line-clamp-2 text-sm leading-relaxed text-stone-700"></p>
+            </div>
+          </div>
+
+          <button
+            id="jumpToSpotlightBtn"
+            type="button"
+            class="hidden shrink-0 items-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 text-xs font-medium text-white transition hover:bg-stone-800 active:scale-[0.99]"
+          >
+            <i class="fa-solid fa-plus"></i>
+            <span>이 책에 문장 추가</span>
+          </button>
+        </div>
+      </section>
+    </header>
+
+    <!-- 입력 영역: 1) 도서 DB 등록  2) 도서별 문장 & 페이지 입력 -->
+    <section class="mb-10 grid gap-6 md:grid-cols-12">
+      <!-- 왼쪽: 새 도서 등록 폼 -->
+      <div class="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm md:col-span-5">
+        <div class="mb-4 flex items-center justify-between gap-2">
+          <h3 class="flex items-center gap-2 text-sm font-semibold text-stone-900">
+            <i class="fa-solid fa-book-medical text-stone-400"></i>
+            <span>새 도서 등록</span>
+          </h3>
+          <button
+            id="resetBookFormBtn"
+            type="button"
+            class="rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1 text-[11px] font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900"
+          >
+            새로 입력
+          </button>
+        </div>
+
+        <form id="bookForm" class="space-y-3.5">
+          <div>
+            <label for="bookFormSelect" class="mb-1.5 block text-xs font-medium text-stone-500">
+              도서 선택 (수정) / 새 도서 입력
+            </label>
+            <select
+              id="bookFormSelect"
+              class="w-full rounded-xl border border-stone-200 bg-stone-50/70 px-3.5 py-2.5 text-sm text-stone-900 transition focus:border-stone-400 focus:bg-white focus:outline-none"
+            ></select>
+          </div>
+
+          <div>
+            <label for="bookTitleInput" class="mb-1.5 block text-xs font-medium text-stone-500">
+              책 제목
+            </label>
+            <input
+              id="bookTitleInput"
+              type="text"
+              required
+              maxlength="80"
+              placeholder="예: 데미안"
+              class="w-full rounded-xl border border-stone-200 bg-stone-50/70 px-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 transition focus:border-stone-400 focus:bg-white focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label for="bookAuthorInput" class="mb-1.5 block text-xs font-medium text-stone-500">
+              저자
+            </label>
+            <input
+              id="bookAuthorInput"
+              type="text"
+              required
+              maxlength="50"
+              placeholder="예: 헤르만 헤세"
+              class="w-full rounded-xl border border-stone-200 bg-stone-50/70 px-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 transition focus:border-stone-400 focus:bg-white focus:outline-none"
+            />
+          </div>
+
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label for="bookStartDateInput" class="mb-1.5 block text-xs font-medium text-stone-500">
+                읽기 시작한 날짜 <span class="font-normal text-stone-400">(선택)</span>
+              </label>
+              <input
+                id="bookStartDateInput"
+                type="date"
+                class="w-full rounded-xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-xs text-stone-800 transition focus:border-stone-400 focus:bg-white focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label for="bookEndDateInput" class="mb-1.5 block text-xs font-medium text-stone-500">
+                다 읽은 날짜 <span class="font-normal text-stone-400">(선택)</span>
+              </label>
+              <input
+                id="bookEndDateInput"
+                type="date"
+                class="w-full rounded-xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-xs text-stone-800 transition focus:border-stone-400 focus:bg-white focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            class="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border border-stone-200 bg-stone-100 px-4 py-2.5 text-sm font-medium text-stone-800 transition hover:bg-stone-200/80 active:scale-[0.99]"
+          >
+            <i class="fa-solid fa-plus text-xs"></i>
+            <span id="bookFormSubmitLabel">도서 DB에 추가</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- 오른쪽: 인상적인 문장 & 페이지 입력 폼 -->
+      <div id="quoteFormCard" class="rounded-2xl border border-stone-200/80 bg-white p-6 shadow-sm md:col-span-7">
+        <h3 class="mb-4 flex items-center gap-2 text-sm font-semibold text-stone-900">
+          <i class="fa-solid fa-quote-right text-stone-400"></i>
+          <span>인상적인 문장 기록</span>
+        </h3>
+
+        <form id="quoteForm" class="space-y-3.5">
+          <div class="grid gap-3 sm:grid-cols-3">
+            <div class="sm:col-span-2">
+              <label for="targetBookSelect" class="mb-1.5 block text-xs font-medium text-stone-500">
+                도서 선택
+              </label>
+              <select
+                id="targetBookSelect"
+                required
+                class="w-full rounded-xl border border-stone-200 bg-stone-50/70 px-3.5 py-2.5 text-sm text-stone-900 transition focus:border-stone-400 focus:bg-white focus:outline-none"
+              ></select>
+            </div>
+
+            <div>
+              <label for="quotePageInput" class="mb-1.5 block text-xs font-medium text-stone-500">
+                페이지
+              </label>
+              <input
+                id="quotePageInput"
+                type="text"
+                maxlength="5"
+                lang="ko"
+                required
+                placeholder="예: 142"
+                class="w-full rounded-xl border border-stone-200 bg-stone-50/70 px-3.5 py-2.5 text-sm text-stone-900 placeholder-stone-400 transition focus:border-stone-400 focus:bg-white focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label for="quoteTextInput" class="mb-1.5 block text-xs font-medium text-stone-500">
+              인상적인 문장
+            </label>
+            <textarea
+              id="quoteTextInput"
+              rows="3"
+              lang="ko"
+              style="ime-mode: active;"
+              required
+              maxlength="500"
+              placeholder="기억하고 싶은 문장을 그대로 옮겨 적어보세요..."
+              class="w-full resize-none rounded-xl border border-stone-200 bg-stone-50/70 p-3.5 text-sm leading-relaxed text-stone-900 placeholder-stone-400 transition focus:border-stone-400 focus:bg-white focus:outline-none"
+            ></textarea>
+          </div>
+
+          <button
+            type="submit"
+            class="flex w-full items-center justify-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-stone-800 active:scale-[0.99]"
+          >
+            <i class="fa-regular fa-floppy-disk text-xs"></i>
+            <span>도서 하위 문장으로 저장</span>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- 도서별 데이터베이스 & 하위 문장 리스트 -->
+    <section>
+      <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h2 class="flex items-center gap-2 text-base font-semibold text-stone-900">
+          <i class="fa-solid fa-database text-sm text-stone-400"></i>
+          <span>도서별 문장 데이터베이스</span>
+        </h2>
+
+        <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <div class="relative min-w-0 flex-1 sm:w-64 sm:flex-initial">
+            <span class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-stone-400">
+              <i class="fa-solid fa-magnifying-glass text-xs"></i>
+            </span>
+            <input
+              id="searchInput"
+              type="text"
+              placeholder="책 제목, 저자, 문장 검색..."
+              class="w-full rounded-xl border border-stone-200 bg-white py-2 pl-9 pr-3.5 text-xs text-stone-800 placeholder-stone-400 transition focus:border-stone-400 focus:outline-none"
+            />
+          </div>
+
+          <!-- 출력 메뉴 -->
+          <div class="relative" id="exportMenuContainer">
+            <button
+              id="exportMenuBtn"
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs font-medium text-stone-700 transition hover:border-stone-300 hover:bg-stone-100 active:scale-[0.99]"
+            >
+              <i class="fa-regular fa-file-lines text-stone-500"></i>
+              <span>출력</span>
+              <i class="fa-solid fa-chevron-down text-[10px] text-stone-400"></i>
+            </button>
+
+            <div
+              id="exportMenuDropdown"
+              class="absolute right-0 z-30 mt-2 hidden w-60 origin-top-right rounded-xl border border-stone-200 bg-white p-1.5 shadow-lg"
+            >
+              <button
+                id="exportAllDocsBtn"
+                type="button"
+                class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-stone-700 transition hover:bg-stone-100"
+              >
+                <i class="fa-brands fa-google-drive w-4 text-center text-stone-500"></i>
+                <div>
+                  <div>전체 도서 Google Docs 저장</div>
+                  <div class="text-[10px] font-normal text-stone-400">내 드라이브 / Reading Archive</div>
+                </div>
+              </button>
+              <button
+                id="exportFilteredDocsBtn"
+                type="button"
+                class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-stone-700 transition hover:bg-stone-100"
+              >
+                <i class="fa-solid fa-filter w-4 text-center text-stone-500"></i>
+                <div>
+                  <div>현재 목록만 Google Docs 저장</div>
+                  <div class="text-[10px] font-normal text-stone-400">검색 결과 기준 출력</div>
+                </div>
+              </button>
+              <div class="my-1 border-t border-stone-100"></div>
+              <button
+                id="printArchiveBtn"
+                type="button"
+                class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-stone-700 transition hover:bg-stone-100"
+              >
+                <i class="fa-solid fa-print w-4 text-center text-stone-500"></i>
+                <span>화면 인쇄 / PDF 저장</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="booksList" class="space-y-4"></div>
+
+      <div
+        id="emptyBooksState"
+        class="hidden rounded-2xl border border-dashed border-stone-300 bg-white/60 p-12 text-center"
+      >
+        <i class="fa-solid fa-book-open-reader mb-3 text-2xl text-stone-300"></i>
+        <p class="text-sm font-medium text-stone-600">아직 등록된 도서나 검색 결과가 없습니다.</p>
+        <p class="mt-1 text-xs text-stone-400">
+          상단의 '새 도서 등록'에서 책 제목과 저자를 먼저 추가해 보세요.
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <!-- Google Drive 동기화 및 백업 모달 -->
+  <div
+    id="syncModal"
+    class="fixed inset-0 z-50 hidden items-center justify-center bg-stone-950/40 p-4 backdrop-blur-[2px]"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="syncModalTitle"
+  >
+    <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-stone-200 bg-white p-6 shadow-xl">
+      <div class="mb-5 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-stone-100 text-stone-700">
+            <i class="fa-brands fa-google-drive"></i>
+          </div>
+          <div>
+            <h2 id="syncModalTitle" class="text-base font-semibold text-stone-900">
+              Google Drive 동기화
+            </h2>
+            <p class="text-xs text-stone-500">
+              PC·모바일 등 여러 기기에서 동일한 독서 DB를 관리합니다
+            </p>
+          </div>
+        </div>
+        <button
+          id="closeSyncModalBtn"
+          type="button"
+          class="rounded-lg p-1.5 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
+          aria-label="모달 닫기"
+        >
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- file:// 환경 안내 경고 -->
+      <div
+        id="fileProtocolWarning"
+        class="mb-4 hidden rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-xs leading-relaxed text-amber-800"
+      >
+        <p class="font-semibold">
+          <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+          로컬 파일(file://)에서는 Google 로그인이 제한됩니다
+        </p>
+        <p class="mt-1 text-amber-700">
+          Google OAuth 보안 정책상 <code class="rounded bg-amber-100 px-1 py-0.5">http://localhost</code> 또는
+          <code class="rounded bg-amber-100 px-1 py-0.5">https://</code> 웹 호스팅(GitHub Pages, Netlify 등) 환경에서 열어주세요.
+        </p>
+      </div>
+
+      <!-- 연결 상태 카드 -->
+      <div class="mb-5 rounded-xl border border-stone-200/80 bg-stone-50/70 p-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <span id="modalStatusDot" class="h-2.5 w-2.5 rounded-full bg-stone-300"></span>
+              <span id="modalStatusText" class="text-sm font-medium text-stone-800">연결되지 않음</span>
+            </div>
+            <p id="modalSyncMeta" class="mt-1 text-xs text-stone-500">
+              저장 위치: 내 드라이브 / Reading Archive / reading_archive_db.json
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button
+              id="googleAuthBtn"
+              type="button"
+              class="inline-flex items-center gap-2 rounded-xl bg-stone-900 px-3.5 py-2 text-xs font-medium text-white transition hover:bg-stone-800 active:scale-[0.99]"
+            >
+              <i class="fa-brands fa-google"></i>
+              <span id="googleAuthBtnLabel">Google 로그인</span>
+            </button>
+            <button
+              id="googleSignOutBtn"
+              type="button"
+              class="hidden rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-600 transition hover:bg-stone-100"
+            >
+              연결 해제
+            </button>
+          </div>
+        </div>
+
+        <!-- 동기화 액션 (연결 시 활성화) -->
+        <div id="syncActionsPanel" class="mt-4 hidden space-y-3 border-t border-stone-200/80 pt-3.5">
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <button
+              id="pushDriveBtn"
+              type="button"
+              class="flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition hover:bg-stone-100"
+            >
+              <i class="fa-solid fa-cloud-arrow-up text-stone-500"></i>
+              <span>드라이브에 저장</span>
+            </button>
+            <button
+              id="pullDriveBtn"
+              type="button"
+              class="flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition hover:bg-stone-100"
+            >
+              <i class="fa-solid fa-cloud-arrow-down text-stone-500"></i>
+              <span>드라이브 불러오기</span>
+            </button>
+            <button
+              id="mergeDriveBtn"
+              type="button"
+              class="flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition hover:bg-stone-100"
+            >
+              <i class="fa-solid fa-code-merge text-stone-500"></i>
+              <span>양방향 병합</span>
+            </button>
+          </div>
+
+          <label class="flex cursor-pointer items-center justify-between rounded-lg bg-white px-3 py-2 text-xs text-stone-600">
+            <span>도서·문장 변경 시 드라이브에 자동 저장</span>
+            <input
+              id="autoSyncToggle"
+              type="checkbox"
+              class="h-4 w-4 rounded border-stone-300 text-stone-900 focus:ring-stone-500"
+            />
+          </label>
+        </div>
+      </div>
+
+      <!-- Google OAuth Client ID 설정 -->
+      <div class="mb-5 space-y-2.5">
+        <label for="clientIdInput" class="block text-xs font-medium text-stone-600">
+          Google OAuth 2.0 클라이언트 ID
+        </label>
+        <div class="flex gap-2">
+          <input
+            id="clientIdInput"
+            type="text"
+            placeholder="예: 1234567890-abc...apps.googleusercontent.com"
+            class="min-w-0 flex-1 rounded-xl border border-stone-200 bg-stone-50/70 px-3 py-2 text-xs text-stone-900 placeholder-stone-400 transition focus:border-stone-400 focus:bg-white focus:outline-none"
+          />
+          <button
+            id="saveClientIdBtn"
+            type="button"
+            class="shrink-0 rounded-xl border border-stone-200 bg-stone-100 px-3.5 py-2 text-xs font-medium text-stone-800 transition hover:bg-stone-200/80"
+          >
+            저장
+          </button>
+        </div>
+
+        <details class="rounded-xl border border-stone-200/70 bg-stone-50/50 px-3.5 py-2.5 text-xs text-stone-600">
+          <summary class="cursor-pointer font-medium text-stone-700">
+            클라이언트 ID 발급 방법 보기
+          </summary>
+          <ol class="mt-2.5 list-inside list-decimal space-y-1.5 text-[11px] leading-relaxed text-stone-500">
+            <li>Google Cloud Console에서 새 프로젝트를 만들고 <strong>Google Drive API</strong>를 사용 설정합니다.</li>
+            <li><strong>OAuth 동의 화면</strong>에서 외부(테스트) 앱으로 설정하고 본인의 구글 계정을 테스트 사용자에 추가합니다.</li>
+            <li><strong>사용자 인증 정보 → OAuth 클라이언트 ID 만들기 → 웹 애플리케이션</strong>을 선택합니다.</li>
+            <li>
+              <strong>승인된 자바스크립트 원본</strong>에 현재 주소
+              <code id="currentOriginText" class="rounded bg-stone-200/70 px-1 py-0.5 text-stone-800"></code>
+              를 추가합니다.
+              <button
+                id="copyOriginBtn"
+                type="button"
+                class="ml-1 inline-flex items-center gap-1 rounded bg-white px-1.5 py-0.5 text-[10px] font-medium text-stone-700 ring-1 ring-stone-200 hover:bg-stone-100"
+              >
+                복사
+              </button>
+            </li>
+            <li>발급된 클라이언트 ID를 위 입력칸에 붙여넣고 저장한 뒤 로그인하세요.</li>
+          </ol>
+        </details>
+      </div>
+
+      <!-- 수동 JSON 백업/복원 -->
+      <div class="border-t border-stone-200/80 pt-4">
+        <p class="mb-2.5 text-xs font-medium text-stone-500">로컬 JSON 파일 백업</p>
+        <div class="flex flex-wrap gap-2">
+          <button
+            id="exportJsonBtn"
+            type="button"
+            class="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition hover:bg-stone-100"
+          >
+            <i class="fa-solid fa-download text-stone-400"></i>
+            <span>JSON 내보내기</span>
+          </button>
+          <label
+            class="inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition hover:bg-stone-100"
+          >
+            <i class="fa-solid fa-upload text-stone-400"></i>
+            <span>JSON 가져오기</span>
+            <input id="importJsonInput" type="file" accept="application/json,.json" class="hidden" />
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI 문장 분석 및 도서 추천 모달 -->
+  <div
+    id="recommendModal"
+    class="fixed inset-0 z-50 hidden items-center justify-center bg-stone-950/40 p-4 backdrop-blur-[2px]"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="recommendModalTitle"
+  >
+    <div class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-stone-200 bg-white p-6 shadow-xl">
+      <div class="mb-5 flex items-start justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-stone-900 text-white">
+            <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
+          </div>
+          <div>
+            <h2 id="recommendModalTitle" class="text-base font-semibold text-stone-900">
+              AI 문장 분석 &amp; 도서 추천
+            </h2>
+            <p id="recommendBookSubtitle" class="text-xs text-stone-500"></p>
+          </div>
+        </div>
+        <button
+          id="closeRecommendModalBtn"
+          type="button"
+          class="rounded-lg p-1.5 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
+          aria-label="모달 닫기"
+        >
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Gemini API 키 설정 -->
+      <details id="geminiKeyDetails" class="mb-5 rounded-xl border border-stone-200/80 bg-stone-50/70 px-4 py-3 text-xs">
+        <summary class="flex cursor-pointer items-center justify-between font-medium text-stone-700">
+          <span>
+            <i class="fa-solid fa-key mr-1.5 text-stone-400"></i>
+            Gemini API 키 설정
+          </span>
+          <span id="geminiKeyStatusBadge" class="rounded-full bg-stone-200 px-2 py-0.5 text-[10px] text-stone-600">
+            미설정
+          </span>
+        </summary>
+        <div class="mt-3 space-y-2">
+          <div class="flex gap-2">
+            <input
+              id="geminiApiKeyInput"
+              type="password"
+              placeholder="AIzaSy... 형태의 Gemini API 키 입력"
+              class="min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs text-stone-900 placeholder-stone-400 focus:border-stone-400 focus:outline-none"
+            />
+            <button
+              id="saveGeminiKeyBtn"
+              type="button"
+              class="shrink-0 rounded-xl bg-stone-900 px-3.5 py-2 text-xs font-medium text-white transition hover:bg-stone-800"
+            >
+              저장
+            </button>
+          </div>
+          <p class="text-[11px] text-stone-500">
+            API 키는 이 브라우저의 로컬 저장소에만 보관됩니다.
+            <a
+              href="https://aistudio.google.com/apikey"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="font-medium text-stone-700 underline underline-offset-2 hover:text-stone-900"
+            >
+              Google AI Studio에서 무료 발급 ↗
+            </a>
+          </p>
+        </div>
+      </details>
+
+      <!-- 로딩 상태 -->
+      <div id="recommendLoadingState" class="hidden py-12 text-center">
+        <i class="fa-solid fa-spinner fa-spin mb-3 text-2xl text-stone-400"></i>
+        <p class="text-sm font-medium text-stone-700">기록된 문장을 분석하고 있습니다...</p>
+        <p class="mt-1 text-xs text-stone-400">핵심 주제와 연관·비교 도서를 찾는 중입니다</p>
+      </div>
+
+      <!-- 결과 영역 -->
+      <div id="recommendResultContainer" class="hidden space-y-5">
+        <!-- 핵심 주제 -->
+        <div class="rounded-xl border border-stone-200/80 bg-stone-50/70 p-4">
+          <h3 class="mb-2 flex items-center gap-1.5 text-xs font-semibold text-stone-800">
+            <i class="fa-solid fa-compass text-stone-500"></i>
+            <span>핵심 주제 요약</span>
+          </h3>
+          <p id="recommendThemeSummary" class="text-xs leading-relaxed text-stone-700"></p>
+          <div id="recommendThemeTags" class="mt-2.5 flex flex-wrap gap-1.5"></div>
+        </div>
+
+        <!-- 연관성이 높은 책 -->
+        <div>
+          <h3 class="mb-2.5 flex items-center gap-1.5 text-xs font-semibold text-stone-800">
+            <i class="fa-solid fa-link text-emerald-600"></i>
+            <span>주제와 연관성이 높은 추천 도서</span>
+          </h3>
+          <div id="recommendRelatedList" class="space-y-2.5"></div>
+        </div>
+
+        <!-- 상반되어 비교해서 읽을 만한 책 -->
+        <div>
+          <h3 class="mb-2.5 flex items-center gap-1.5 text-xs font-semibold text-stone-800">
+            <i class="fa-solid fa-scale-balanced text-amber-600"></i>
+            <span>상반된 관점 · 비교해서 읽을 만한 도서</span>
+          </h3>
+          <div id="recommendContrastingList" class="space-y-2.5"></div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 pt-3">
+          <span id="recommendMetaInfo" class="text-[11px] text-stone-400"></span>
+          <button
+            id="reAnalyzeBtn"
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3.5 py-2 text-xs font-medium text-stone-700 transition hover:bg-stone-100"
+          >
+            <i class="fa-solid fa-rotate text-[11px]"></i>
+            <span>다시 분석하기</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 빈/초기 안내 상태 -->
+      <div id="recommendEmptyState" class="hidden rounded-xl border border-dashed border-stone-200 bg-stone-50/50 p-8 text-center">
+        <i class="fa-solid fa-wand-magic-sparkles mb-2.5 text-xl text-stone-300"></i>
+        <p class="text-sm font-medium text-stone-700">저장된 문장을 바탕으로 도서를 추천받을 수 있습니다</p>
+        <p class="mt-1 text-xs text-stone-400">분석 결과는 데이터베이스에 저장되어 언제든 다시 볼 수 있습니다.</p>
+        <button
+          id="startAnalyzeBtn"
+          type="button"
+          class="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-stone-900 px-4 py-2 text-xs font-medium text-white transition hover:bg-stone-800"
+        >
+          <i class="fa-solid fa-wand-magic-sparkles text-[11px]"></i>
+          <span>문장 분석 및 도서 추천 실행</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 알림 토스트 -->
+  <div
+    id="toastBanner"
+    class="pointer-events-none fixed bottom-5 left-1/2 z-50 flex -translate-x-1/2 translate-y-3 items-center gap-2.5 rounded-full bg-stone-900 px-4 py-2 text-xs font-medium text-white opacity-0 shadow-lg transition-all duration-200"
+  ></div>
+
+  <script>
+    const DB_KEY = 'brutal_reading_archive_db_v1';
+    const CLIENT_ID_KEY = 'reading_archive_gdrive_client_id';
+    const SYNC_META_KEY = 'reading_archive_gdrive_meta_v1';
+    const TOKEN_SESSION_KEY = 'reading_archive_gdrive_token';
+    const DRIVE_FOLDER_NAME = 'Reading Archive';
+    const DRIVE_FILE_NAME = 'reading_archive_db.json';
+    const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+    const GEMINI_KEY_STORAGE = 'reading_archive_gemini_api_key';
+
+    // DOM Elements
+    const spotlightTitle = document.getElementById('spotlightTitle');
+    const spotlightAuthor = document.getElementById('spotlightAuthor');
+    const spotlightMeta = document.getElementById('spotlightMeta');
+    const spotlightQuoteBox = document.getElementById('spotlightQuoteBox');
+    const spotlightQuotePage = document.getElementById('spotlightQuotePage');
+    const spotlightQuoteText = document.getElementById('spotlightQuoteText');
+    const jumpToSpotlightBtn = document.getElementById('jumpToSpotlightBtn');
+
+    const totalBooksStat = document.getElementById('totalBooksStat');
+    const totalQuotesStat = document.getElementById('totalQuotesStat');
+
+    // Sync Modal & Status DOM Elements
+    const syncModalBtn = document.getElementById('syncModalBtn');
+    const syncStatusDot = document.getElementById('syncStatusDot');
+    const syncStatusLabel = document.getElementById('syncStatusLabel');
+    const syncModal = document.getElementById('syncModal');
+    const closeSyncModalBtn = document.getElementById('closeSyncModalBtn');
+    const fileProtocolWarning = document.getElementById('fileProtocolWarning');
+    const modalStatusDot = document.getElementById('modalStatusDot');
+    const modalStatusText = document.getElementById('modalStatusText');
+    const modalSyncMeta = document.getElementById('modalSyncMeta');
+    const googleAuthBtn = document.getElementById('googleAuthBtn');
+    const googleAuthBtnLabel = document.getElementById('googleAuthBtnLabel');
+    const googleSignOutBtn = document.getElementById('googleSignOutBtn');
+    const syncActionsPanel = document.getElementById('syncActionsPanel');
+    const pushDriveBtn = document.getElementById('pushDriveBtn');
+    const pullDriveBtn = document.getElementById('pullDriveBtn');
+    const mergeDriveBtn = document.getElementById('mergeDriveBtn');
+    const autoSyncToggle = document.getElementById('autoSyncToggle');
+    const clientIdInput = document.getElementById('clientIdInput');
+    const saveClientIdBtn = document.getElementById('saveClientIdBtn');
+    const currentOriginText = document.getElementById('currentOriginText');
+    const copyOriginBtn = document.getElementById('copyOriginBtn');
+    const exportJsonBtn = document.getElementById('exportJsonBtn');
+    const importJsonInput = document.getElementById('importJsonInput');
+    const toastBanner = document.getElementById('toastBanner');
+
+    const bookForm = document.getElementById('bookForm');
+    const bookFormSelect = document.getElementById('bookFormSelect');
+    const bookFormSubmitLabel = document.getElementById('bookFormSubmitLabel');
+    const bookTitleInput = document.getElementById('bookTitleInput');
+    const bookAuthorInput = document.getElementById('bookAuthorInput');
+    const bookStartDateInput = document.getElementById('bookStartDateInput');
+    const bookEndDateInput = document.getElementById('bookEndDateInput');
+    const resetBookFormBtn = document.getElementById('resetBookFormBtn');
+
+    const quoteFormCard = document.getElementById('quoteFormCard');
+    const quoteForm = document.getElementById('quoteForm');
+    const targetBookSelect = document.getElementById('targetBookSelect');
+    const quotePageInput = document.getElementById('quotePageInput');
+    const quoteTextInput = document.getElementById('quoteTextInput');
+
+    const searchInput = document.getElementById('searchInput');
+    const booksList = document.getElementById('booksList');
+    const emptyBooksState = document.getElementById('emptyBooksState');
+
+    // Export Menu DOM Elements
+    const exportMenuContainer = document.getElementById('exportMenuContainer');
+    const exportMenuBtn = document.getElementById('exportMenuBtn');
+    const exportMenuDropdown = document.getElementById('exportMenuDropdown');
+    const exportAllDocsBtn = document.getElementById('exportAllDocsBtn');
+    const exportFilteredDocsBtn = document.getElementById('exportFilteredDocsBtn');
+    const printArchiveBtn = document.getElementById('printArchiveBtn');
+
+    // Recommend Modal DOM Elements
+    const recommendModal = document.getElementById('recommendModal');
+    const recommendBookSubtitle = document.getElementById('recommendBookSubtitle');
+    const closeRecommendModalBtn = document.getElementById('closeRecommendModalBtn');
+    const geminiKeyDetails = document.getElementById('geminiKeyDetails');
+    const geminiKeyStatusBadge = document.getElementById('geminiKeyStatusBadge');
+    const geminiApiKeyInput = document.getElementById('geminiApiKeyInput');
+    const saveGeminiKeyBtn = document.getElementById('saveGeminiKeyBtn');
+    const recommendLoadingState = document.getElementById('recommendLoadingState');
+    const recommendResultContainer = document.getElementById('recommendResultContainer');
+    const recommendThemeSummary = document.getElementById('recommendThemeSummary');
+    const recommendThemeTags = document.getElementById('recommendThemeTags');
+    const recommendRelatedList = document.getElementById('recommendRelatedList');
+    const recommendContrastingList = document.getElementById('recommendContrastingList');
+    const recommendMetaInfo = document.getElementById('recommendMetaInfo');
+    const reAnalyzeBtn = document.getElementById('reAnalyzeBtn');
+    const recommendEmptyState = document.getElementById('recommendEmptyState');
+    const startAnalyzeBtn = document.getElementById('startAnalyzeBtn');
+    let activeRecommendBookId = null;
+
+    let expandedBookIds = new Set();
+    let editingReviewBookIds = new Set();
+    let syncMeta = loadSyncMeta();
+    let booksDB = loadDB();
+    let tokenClient = null;
+    let accessToken = loadSessionToken();
+    let isSyncing = false;
+    let autoSyncTimer = null;
+    let toastTimer = null;
+
+    function loadSyncMeta() {
+      try {
+        const raw = localStorage.getItem(SYNC_META_KEY);
+        if (raw) {
+          return { autoSync: true, wasConnected: false, lastSyncedAt: 0, localModifiedAt: 0, driveFolderId: '', driveFileId: '', ...JSON.parse(raw) };
+        }
+      } catch {}
+      return { autoSync: true, wasConnected: false, lastSyncedAt: 0, localModifiedAt: 0, driveFolderId: '', driveFileId: '' };
+    }
+
+    function saveSyncMeta() {
+      localStorage.setItem(SYNC_META_KEY, JSON.stringify(syncMeta));
+    }
+
+    function loadSessionToken() {
+      try {
+        const raw = sessionStorage.getItem(TOKEN_SESSION_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (parsed.token && parsed.expiresAt && Date.now() < parsed.expiresAt) {
+          return parsed.token;
+        }
+        sessionStorage.removeItem(TOKEN_SESSION_KEY);
+      } catch {}
+      return null;
+    }
+
+    function saveSessionToken(token, expiresInSec = 3500) {
+      accessToken = token;
+      if (!token) {
+        sessionStorage.removeItem(TOKEN_SESSION_KEY);
+        return;
+      }
+      sessionStorage.setItem(
+        TOKEN_SESSION_KEY,
+        JSON.stringify({ token, expiresAt: Date.now() + Math.max(60, expiresInSec - 60) * 1000 })
+      );
+    }
+
+    function showToast(message, linkUrl = '', linkLabel = '') {
+      toastBanner.innerHTML = '';
+      const msgSpan = document.createElement('span');
+      msgSpan.textContent = message;
+      toastBanner.appendChild(msgSpan);
+
+      if (linkUrl) {
+        const link = document.createElement('a');
+        link.href = linkUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold text-white underline-offset-2 hover:bg-white/25';
+        link.textContent = linkLabel || '열기 ↗';
+        toastBanner.appendChild(link);
+        toastBanner.classList.remove('pointer-events-none');
+        toastBanner.classList.add('pointer-events-auto');
+      } else {
+        toastBanner.classList.add('pointer-events-none');
+        toastBanner.classList.remove('pointer-events-auto');
+      }
+
+      toastBanner.classList.remove('opacity-0', 'translate-y-3');
+      toastBanner.classList.add('opacity-100', 'translate-y-0');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toastBanner.classList.add('opacity-0', 'translate-y-3', 'pointer-events-none');
+        toastBanner.classList.remove('opacity-100', 'translate-y-0', 'pointer-events-auto');
+      }, linkUrl ? 6500 : 2800);
+    }
+
+    function loadDB() {
+      const raw = localStorage.getItem(DB_KEY);
+      if (raw) {
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return [];
+        }
+      }
+
+      // 첫 실행 시 예시 도서 및 하위 문장 데이터 제공
+      const now = Date.now();
+      const sample = [
+        {
+          id: crypto.randomUUID(),
+          title: '사피엔스',
+          author: '유발 하라리',
+          createdAt: now - 3600000,
+          updatedAt: now - 1000,
+          lastQuoteAt: now - 1000,
+          quotes: [
+            {
+              id: crypto.randomUUID(),
+              page: 162,
+              text: '상상의 질서는 우리 욕망의 가장 깊은 곳까지 침투해 있다.',
+              createdAt: now - 1000,
+            },
+            {
+              id: crypto.randomUUID(),
+              page: 54,
+              text: '대규모 협력의 비결은 오직 허구를 믿는 능력에 있다.',
+              createdAt: now - 1800000,
+            },
+          ],
+        },
+        {
+          id: crypto.randomUUID(),
+          title: '데미안',
+          author: '헤르만 헤세',
+          createdAt: now - 7200000,
+          updatedAt: now - 3600000,
+          lastQuoteAt: now - 3600000,
+          quotes: [
+            {
+              id: crypto.randomUUID(),
+              page: 118,
+              text: '새는 알에서 나오려고 투쟁한다. 알은 세계다. 태어나려는 자는 하나의 세계를 깨뜨려야 한다.',
+              createdAt: now - 3600000,
+            },
+          ],
+        },
+      ];
+      localStorage.setItem(DB_KEY, JSON.stringify(sample));
+      return sample;
+    }
+
+    function saveDB(markModified = true) {
+      localStorage.setItem(DB_KEY, JSON.stringify(booksDB));
+      if (markModified) {
+        syncMeta.localModifiedAt = Date.now();
+        saveSyncMeta();
+        if (syncMeta.autoSync && accessToken) {
+          clearTimeout(autoSyncTimer);
+          autoSyncTimer = setTimeout(() => {
+            pushToDrive(true);
+          }, 700);
+        }
+      }
+    }
+
+    function getBookLastQuoteAt(book) {
+      if (!book) return 0;
+      if (book.quotes && book.quotes.length > 0) {
+        const maxQuoteTs = Math.max(...book.quotes.map((q) => q.createdAt || 0));
+        return Math.max(book.lastQuoteAt || 0, maxQuoteTs);
+      }
+      return book.lastQuoteAt || 0;
+    }
+
+    // 가장 최근에 문장을 입력한 책 찾기 (문장이 있는 책 우선, 없으면 최근 등록된 책)
+    function getMostRecentQuotedBook() {
+      if (booksDB.length === 0) return null;
+
+      const withQuotes = booksDB.filter((b) => b.quotes && b.quotes.length > 0);
+      if (withQuotes.length > 0) {
+        return [...withQuotes].sort((a, b) => getBookLastQuoteAt(b) - getBookLastQuoteAt(a))[0];
+      }
+      return [...booksDB].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))[0];
+    }
+
+    function formatRelativeTime(ts) {
+      if (!ts) return '';
+      const diffSec = Math.floor((Date.now() - ts) / 1000);
+      if (diffSec < 60) return '방금 전 기록';
+      if (diffSec < 3600) return `${Math.floor(diffSec / 60)}분 전 기록`;
+      if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}시간 전 기록`;
+      const d = new Date(ts);
+      return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function formatReadingPeriod(book) {
+      const start = (book.startedAt || '').trim();
+      const end = (book.finishedAt || '').trim();
+      if (!start && !end) return '';
+      const fmt = (d) => d.replaceAll('-', '.');
+      if (start && end) return `${fmt(start)} ~ ${fmt(end)}`;
+      if (start) return `${fmt(start)} ~ 읽는 중`;
+      return `~ ${fmt(end)} 완독`;
+    }
+
+    function renderSpotlightAndStats() {
+      const totalBooks = booksDB.length;
+      const totalQuotes = booksDB.reduce((sum, b) => sum + (b.quotes ? b.quotes.length : 0), 0);
+
+      totalBooksStat.textContent = `도서 ${totalBooks}권`;
+      totalQuotesStat.textContent = `문장 ${totalQuotes}개`;
+
+      const recentBook = getMostRecentQuotedBook();
+      if (!recentBook) {
+        spotlightTitle.textContent = '등록된 도서가 없습니다';
+        spotlightAuthor.textContent = '아래에서 첫 번째 책을 등록해 보세요';
+        spotlightMeta.textContent = '';
+        spotlightQuoteBox.classList.add('hidden');
+        jumpToSpotlightBtn.classList.add('hidden');
+        jumpToSpotlightBtn.classList.remove('inline-flex');
+        return;
+      }
+
+      spotlightTitle.textContent = recentBook.title;
+      spotlightAuthor.textContent = recentBook.author;
+      const quoteCount = recentBook.quotes ? recentBook.quotes.length : 0;
+      const lastQuoteTs = getBookLastQuoteAt(recentBook);
+      const timeLabel = lastQuoteTs ? formatRelativeTime(lastQuoteTs) : '새 도서';
+      spotlightMeta.textContent = `수집된 문장 ${quoteCount}개 · ${timeLabel}`;
+
+      if (quoteCount > 0) {
+        const latestQuote = [...recentBook.quotes].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+        spotlightQuotePage.textContent = `p.${latestQuote.page}`;
+        spotlightQuoteText.textContent = `“${latestQuote.text}”`;
+        spotlightQuoteBox.classList.remove('hidden');
+      } else {
+        spotlightQuoteBox.classList.add('hidden');
+      }
+
+      jumpToSpotlightBtn.classList.remove('hidden');
+      jumpToSpotlightBtn.classList.add('inline-flex');
+      jumpToSpotlightBtn.onclick = () => {
+        targetBookSelect.value = recentBook.id;
+        quoteFormCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        quoteTextInput.focus();
+      };
+    }
+
+    function renderBookSelect(preferredId) {
+      const currentVal = preferredId || targetBookSelect.value;
+      targetBookSelect.innerHTML = '';
+      bookFormSelect.innerHTML = '';
+
+      const newBookOpt = document.createElement('option');
+      newBookOpt.value = '';
+      newBookOpt.textContent = '+ 새 도서 직접 입력';
+      bookFormSelect.appendChild(newBookOpt);
+
+      if (booksDB.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '먼저 도서를 등록해 주세요';
+        targetBookSelect.appendChild(opt);
+        targetBookSelect.disabled = true;
+        quotePageInput.disabled = true;
+        quoteTextInput.disabled = true;
+        return;
+      }
+
+      targetBookSelect.disabled = false;
+      quotePageInput.disabled = false;
+      quoteTextInput.disabled = false;
+
+      const sorted = [...booksDB].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      sorted.forEach((book) => {
+        const opt = document.createElement('option');
+        opt.value = book.id;
+        opt.textContent = `${book.title} — ${book.author}`;
+        targetBookSelect.appendChild(opt);
+
+        const formOpt = document.createElement('option');
+        formOpt.value = book.id;
+        formOpt.textContent = `${book.title} — ${book.author}`;
+        bookFormSelect.appendChild(formOpt);
+      });
+
+      if (currentVal && sorted.some((b) => b.id === currentVal)) {
+        targetBookSelect.value = currentVal;
+      } else {
+        const recent = getMostRecentQuotedBook();
+        if (recent) targetBookSelect.value = recent.id;
+      }
+    }
+
+    function renderBooksList() {
+      const keyword = searchInput.value.trim().toLowerCase();
+      const sortedBooks = [...booksDB].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
+      const filtered = sortedBooks.filter((book) => {
+        if (!keyword) return true;
+        const inBook =
+          book.title.toLowerCase().includes(keyword) ||
+          book.author.toLowerCase().includes(keyword);
+        const inQuotes = (book.quotes || []).some((q) =>
+          q.text.toLowerCase().includes(keyword)
+        );
+        const inReview = (book.review || '').toLowerCase().includes(keyword);
+        return inBook || inQuotes || inReview;
+      });
+
+      booksList.innerHTML = '';
+
+      if (filtered.length === 0) {
+        emptyBooksState.classList.remove('hidden');
+        return;
+      }
+      emptyBooksState.classList.add('hidden');
+
+      filtered.forEach((book, idx) => {
+        // 첫 번째(가장 최근) 도서 또는 검색 중일 때는 기본 펼침
+        if (expandedBookIds.size === 0 && idx === 0) {
+          expandedBookIds.add(book.id);
+        }
+        const isExpanded = keyword ? true : expandedBookIds.has(book.id);
+
+        const card = document.createElement('article');
+        card.className = 'overflow-hidden rounded-2xl border border-stone-200/90 bg-white shadow-sm transition hover:border-stone-300';
+
+        // 도서 헤더 (상위 레벨)
+        const header = document.createElement('div');
+        header.className =
+          'flex flex-wrap items-center justify-between gap-3 bg-white px-5 py-4';
+
+        const leftInfo = document.createElement('button');
+        leftInfo.type = 'button';
+        leftInfo.className = 'flex min-w-0 flex-1 items-center gap-3.5 text-left';
+        leftInfo.onclick = () => {
+          if (expandedBookIds.has(book.id)) {
+            expandedBookIds.delete(book.id);
+          } else {
+            expandedBookIds.add(book.id);
+          }
+          renderBooksList();
+        };
+
+        const periodText = formatReadingPeriod(book);
+        leftInfo.innerHTML = `
+          <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-xs text-stone-500 transition">
+            <i class="fa-solid ${isExpanded ? 'fa-chevron-down' : 'fa-chevron-right'}"></i>
+          </span>
+          <div class="min-w-0">
+            <h3 class="truncate text-base font-semibold text-stone-900">${escapeHtml(book.title)}</h3>
+            <p class="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-stone-500">
+              <span><i class="fa-solid fa-feather-pointed mr-1 text-[10px] text-stone-400"></i>${escapeHtml(book.author)}</span>
+              ${periodText ? `<span class="text-stone-400"><i class="fa-regular fa-calendar mr-1 text-[10px]"></i>${escapeHtml(periodText)}</span>` : ''}
+            </p>
+          </div>
+        `;
+
+        const rightActions = document.createElement('div');
+        rightActions.className = 'flex items-center gap-2';
+
+        const countBadge = document.createElement('span');
+        countBadge.className =
+          'rounded-full bg-stone-100 px-2.5 py-1 text-xs font-medium text-stone-600';
+        countBadge.innerHTML = `<i class="fa-solid fa-quote-left mr-1 text-[10px] text-stone-400"></i>${(book.quotes || []).length}`;
+
+        const quickAddBtn = document.createElement('button');
+        quickAddBtn.type = 'button';
+        quickAddBtn.title = '이 책에 문장 추가';
+        quickAddBtn.className =
+          'rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-700 transition hover:bg-stone-100';
+        quickAddBtn.innerHTML = '<i class="fa-solid fa-plus mr-1 text-[10px]"></i>문장';
+        quickAddBtn.onclick = () => {
+          targetBookSelect.value = book.id;
+          quoteFormCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          quotePageInput.focus();
+        };
+
+        const hasReview = Boolean((book.review || '').trim());
+        const reviewBookBtn = document.createElement('button');
+        reviewBookBtn.type = 'button';
+        reviewBookBtn.title = '도서 감상문 작성/보기';
+        reviewBookBtn.className = hasReview
+          ? 'rounded-lg border border-stone-300 bg-stone-100 px-2.5 py-1.5 text-xs font-medium text-stone-900 transition hover:bg-stone-200/80'
+          : 'rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-700 transition hover:bg-stone-100';
+        reviewBookBtn.innerHTML = '<i class="fa-regular fa-pen-to-square mr-1 text-[10px] text-stone-500"></i>감상문';
+        reviewBookBtn.onclick = () => {
+          expandedBookIds.add(book.id);
+          if (!hasReview) {
+            editingReviewBookIds.add(book.id);
+          }
+          renderBooksList();
+          const targetReviewEl = document.getElementById(`review-section-${book.id}`);
+          if (targetReviewEl) {
+            targetReviewEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const textarea = targetReviewEl.querySelector('textarea');
+            if (textarea) textarea.focus();
+          }
+        };
+
+        const exportBookDocsBtn = document.createElement('button');
+        exportBookDocsBtn.type = 'button';
+        exportBookDocsBtn.title = '이 도서를 Google Docs로 출력';
+        exportBookDocsBtn.className =
+          'rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-700 transition hover:bg-stone-100';
+        exportBookDocsBtn.innerHTML = '<i class="fa-regular fa-file-lines mr-1 text-[10px] text-stone-500"></i>Docs';
+        exportBookDocsBtn.onclick = () => {
+          exportBooksToGoogleDocs([book], `${book.title} - ${book.author}`);
+        };
+
+        const recommendBookBtn = document.createElement('button');
+        recommendBookBtn.type = 'button';
+        recommendBookBtn.title = '문장 분석 및 도서 추천';
+        recommendBookBtn.className = book.recommendation
+          ? 'rounded-lg border border-stone-300 bg-stone-100 px-2.5 py-1.5 text-xs font-medium text-stone-900 transition hover:bg-stone-200/80'
+          : 'rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-700 transition hover:bg-stone-100';
+        recommendBookBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles mr-1 text-[10px] text-stone-500"></i>추천';
+        recommendBookBtn.onclick = () => {
+          openRecommendModal(book.id);
+        };
+
+        const deleteBookBtn = document.createElement('button');
+        deleteBookBtn.type = 'button';
+        deleteBookBtn.title = '도서 삭제';
+        deleteBookBtn.className =
+          'rounded-lg p-1.5 text-xs text-stone-400 transition hover:bg-rose-50 hover:text-rose-600';
+        deleteBookBtn.innerHTML = '<i class="fa-regular fa-trash-can"></i>';
+        deleteBookBtn.onclick = () => {
+          if (!confirm(`'${book.title}' 도서와 하위 문장을 모두 삭제할까요?`)) return;
+          booksDB = booksDB.filter((b) => b.id !== book.id);
+          expandedBookIds.delete(book.id);
+          saveDB();
+          renderAll();
+        };
+
+        rightActions.appendChild(countBadge);
+        rightActions.appendChild(quickAddBtn);
+        rightActions.appendChild(reviewBookBtn);
+        rightActions.appendChild(exportBookDocsBtn);
+        rightActions.appendChild(recommendBookBtn);
+        rightActions.appendChild(deleteBookBtn);
+
+        header.appendChild(leftInfo);
+        header.appendChild(rightActions);
+        card.appendChild(header);
+
+        // 하위 레벨: 독서 기간 편집 + 인상적인 문장 & 페이지 리스트
+        if (isExpanded) {
+          const quotesBody = document.createElement('div');
+          quotesBody.className = 'space-y-2.5 border-t border-stone-100 bg-stone-50/50 p-5';
+
+          const datesBar = document.createElement('div');
+          datesBar.className =
+            'mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-stone-200/80 bg-white px-4 py-2.5 text-xs';
+          datesBar.innerHTML = `
+            <span class="flex items-center gap-1.5 font-medium text-stone-600">
+              <i class="fa-regular fa-calendar text-stone-400"></i>
+              <span>독서 기간</span>
+            </span>
+            <div class="flex flex-wrap items-center gap-2">
+              <label class="flex items-center gap-1.5 text-stone-500">
+                <span>시작</span>
+                <input
+                  type="date"
+                  value="${escapeHtml(book.startedAt || '')}"
+                  class="book-start-date rounded-lg border border-stone-200 bg-stone-50/70 px-2 py-1 text-xs text-stone-800 focus:border-stone-400 focus:bg-white focus:outline-none"
+                />
+              </label>
+              <span class="text-stone-300">~</span>
+              <label class="flex items-center gap-1.5 text-stone-500">
+                <span>완독</span>
+                <input
+                  type="date"
+                  value="${escapeHtml(book.finishedAt || '')}"
+                  class="book-end-date rounded-lg border border-stone-200 bg-stone-50/70 px-2 py-1 text-xs text-stone-800 focus:border-stone-400 focus:bg-white focus:outline-none"
+                />
+              </label>
+            </div>
+          `;
+
+          const startInput = datesBar.querySelector('.book-start-date');
+          const endInput = datesBar.querySelector('.book-end-date');
+          const onDateChange = () => {
+            book.startedAt = startInput.value;
+            book.finishedAt = endInput.value;
+            book.updatedAt = Date.now();
+            saveDB();
+            renderAll(book.id);
+            showToast('독서 기간이 저장되었습니다.');
+          };
+          startInput.addEventListener('change', onDateChange);
+          endInput.addEventListener('change', onDateChange);
+          quotesBody.appendChild(datesBar);
+
+          // 도서 감상문 섹션
+          const reviewSection = document.createElement('div');
+          reviewSection.id = `review-section-${book.id}`;
+          reviewSection.className = 'mb-3 rounded-xl border border-stone-200/80 bg-white p-4';
+          const isEditingReview = editingReviewBookIds.has(book.id);
+          const reviewText = (book.review || '').trim();
+
+          if (isEditingReview) {
+            reviewSection.innerHTML = `
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <span class="flex items-center gap-1.5 text-xs font-semibold text-stone-800">
+                  <i class="fa-regular fa-pen-to-square text-stone-400"></i>
+                  <span>도서 감상문</span>
+                </span>
+              </div>
+              <textarea
+                rows="4"
+                lang="ko"
+                maxlength="3000"
+                placeholder="책을 읽고 느낀 생각, 핵심 배움, 나만의 감상문을 자유롭게 기록해 보세요..."
+                class="review-textarea w-full resize-y rounded-xl border border-stone-200 bg-stone-50/70 p-3 text-sm leading-relaxed text-stone-900 placeholder-stone-400 transition focus:border-stone-400 focus:bg-white focus:outline-none"
+              >${escapeHtml(book.review || '')}</textarea>
+              <div class="mt-2.5 flex items-center justify-end gap-2">
+                <button type="button" class="cancel-review-btn rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 transition hover:bg-stone-100">
+                  취소
+                </button>
+                <button type="button" class="save-review-btn rounded-lg bg-stone-900 px-3.5 py-1.5 text-xs font-medium text-white transition hover:bg-stone-800">
+                  감상문 저장
+                </button>
+              </div>
+            `;
+
+            const textarea = reviewSection.querySelector('.review-textarea');
+            reviewSection.querySelector('.cancel-review-btn').onclick = () => {
+              editingReviewBookIds.delete(book.id);
+              renderBooksList();
+            };
+            reviewSection.querySelector('.save-review-btn').onclick = () => {
+              const newReview = textarea.value.trim();
+              book.review = newReview;
+              if (newReview) {
+                book.reviewUpdatedAt = Date.now();
+              } else {
+                delete book.reviewUpdatedAt;
+              }
+              book.updatedAt = Date.now();
+              editingReviewBookIds.delete(book.id);
+              saveDB();
+              renderAll(book.id);
+              showToast(newReview ? '도서 감상문이 저장되었습니다.' : '도서 감상문이 비워졌습니다.');
+            };
+          } else if (reviewText) {
+            const updatedLabel = book.reviewUpdatedAt ? formatRelativeTime(book.reviewUpdatedAt) : '';
+            reviewSection.innerHTML = `
+              <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="flex items-center gap-1.5 text-xs font-semibold text-stone-800">
+                    <i class="fa-regular fa-pen-to-square text-stone-400"></i>
+                    <span>도서 감상문</span>
+                  </span>
+                  ${updatedLabel ? `<span class="text-[11px] text-stone-400">${escapeHtml(updatedLabel)}</span>` : ''}
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" class="edit-review-btn rounded-lg border border-stone-200 bg-white px-2.5 py-1 text-[11px] font-medium text-stone-600 transition hover:bg-stone-100">
+                    수정
+                  </button>
+                  <button type="button" class="delete-review-btn rounded-lg p-1 text-[11px] text-stone-400 transition hover:bg-rose-50 hover:text-rose-500" title="감상문 삭제">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+              </div>
+              <p class="whitespace-pre-wrap text-sm leading-relaxed text-stone-800">${escapeHtml(reviewText)}</p>
+            `;
+            reviewSection.querySelector('.edit-review-btn').onclick = () => {
+              editingReviewBookIds.add(book.id);
+              renderBooksList();
+              const el = document.getElementById(`review-section-${book.id}`);
+              if (el) {
+                const ta = el.querySelector('textarea');
+                if (ta) ta.focus();
+              }
+            };
+            reviewSection.querySelector('.delete-review-btn').onclick = () => {
+              if (!confirm('이 도서의 감상문을 삭제할까요?')) return;
+              delete book.review;
+              delete book.reviewUpdatedAt;
+              book.updatedAt = Date.now();
+              saveDB();
+              renderAll(book.id);
+              showToast('도서 감상문이 삭제되었습니다.');
+            };
+          } else {
+            reviewSection.innerHTML = `
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="flex items-center gap-1.5 text-xs text-stone-400">
+                  <i class="fa-regular fa-pen-to-square"></i>
+                  <span>아직 작성된 도서 감상문이 없습니다.</span>
+                </span>
+                <button type="button" class="write-review-btn rounded-lg border border-stone-200 bg-stone-50 px-2.5 py-1 text-xs font-medium text-stone-700 transition hover:bg-stone-100">
+                  감상문 작성
+                </button>
+              </div>
+            `;
+            reviewSection.querySelector('.write-review-btn').onclick = () => {
+              editingReviewBookIds.add(book.id);
+              renderBooksList();
+              const el = document.getElementById(`review-section-${book.id}`);
+              if (el) {
+                const ta = el.querySelector('textarea');
+                if (ta) ta.focus();
+              }
+            };
+          }
+          quotesBody.appendChild(reviewSection);
+
+          const quotes = [...(book.quotes || [])].sort((a, b) => Number(a.page) - Number(b.page));
+
+          if (quotes.length === 0) {
+            const emptyQuoteBox = document.createElement('div');
+            emptyQuoteBox.className =
+              'rounded-xl border border-dashed border-stone-200 bg-white p-5 text-center text-xs text-stone-400';
+            emptyQuoteBox.innerHTML = `
+              <i class="fa-regular fa-comment-dots mr-1"></i>
+              아직 저장된 문장이 없습니다. 위 입력창에서 문장과 페이지를 추가해 보세요.
+            `;
+            quotesBody.appendChild(emptyQuoteBox);
+          } else {
+            quotes.forEach((q) => {
+              const qItem = document.createElement('div');
+              qItem.className =
+                'group flex items-start justify-between gap-3 rounded-xl border border-stone-200/80 bg-white p-4 transition hover:border-stone-300';
+
+              const qLeft = document.createElement('div');
+              qLeft.className = 'min-w-0 flex-1';
+              qLeft.innerHTML = `
+                <div class="mb-2 flex items-center gap-2">
+                  <span class="inline-flex items-center gap-1 rounded-md bg-stone-100 px-2 py-0.5 text-[11px] font-medium text-stone-700">
+                    <i class="fa-regular fa-bookmark text-[10px] text-stone-400"></i> p.${escapeHtml(String(q.page))}
+                  </span>
+                  <span class="text-[11px] text-stone-400">${formatRelativeTime(q.createdAt)}</span>
+                </div>
+                <p class="whitespace-pre-wrap text-sm leading-relaxed text-stone-800">
+                  “${escapeHtml(q.text)}”
+                </p>
+              `;
+
+              const delQuoteBtn = document.createElement('button');
+              delQuoteBtn.type = 'button';
+              delQuoteBtn.title = '문장 삭제';
+              delQuoteBtn.className =
+                'shrink-0 rounded-lg p-1.5 text-xs text-stone-300 transition hover:bg-rose-50 hover:text-rose-500';
+              delQuoteBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+              delQuoteBtn.onclick = () => {
+                book.quotes = book.quotes.filter((item) => item.id !== q.id);
+                if (book.quotes.length > 0) {
+                  book.lastQuoteAt = Math.max(...book.quotes.map((item) => item.createdAt || 0));
+                } else {
+                  delete book.lastQuoteAt;
+                }
+                saveDB();
+                renderAll(book.id);
+              };
+
+              qItem.appendChild(qLeft);
+              qItem.appendChild(delQuoteBtn);
+              quotesBody.appendChild(qItem);
+            });
+          }
+
+          if (book.recommendation) {
+            const rec = book.recommendation;
+            const recCard = document.createElement('div');
+            recCard.className = 'mt-3 rounded-xl border border-stone-200 bg-white p-4';
+            const relatedNames = (rec.relatedBooks || []).map((b) => escapeHtml(b.title)).join(', ');
+            const contrastNames = (rec.contrastingBooks || []).map((b) => escapeHtml(b.title)).join(', ');
+            const tagsHtml = (rec.coreThemes || [])
+              .map(
+                (t) =>
+                  `<span class="rounded-full bg-stone-100 px-2.5 py-0.5 text-[11px] font-medium text-stone-700">#${escapeHtml(t)}</span>`
+              )
+              .join('');
+
+            recCard.innerHTML = `
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-800">
+                  <i class="fa-solid fa-wand-magic-sparkles text-[11px] text-stone-500"></i>
+                  AI 분석 및 추천 도서
+                </span>
+                <button type="button" class="open-rec-detail-btn text-[11px] font-medium text-stone-500 underline underline-offset-2 hover:text-stone-900">
+                  상세 보기
+                </button>
+              </div>
+              ${tagsHtml ? `<div class="mb-2 flex flex-wrap gap-1.5">${tagsHtml}</div>` : ''}
+              ${rec.themeSummary ? `<p class="mb-2 text-xs leading-relaxed text-stone-600">${escapeHtml(rec.themeSummary)}</p>` : ''}
+              <div class="space-y-1 text-[11px] text-stone-600">
+                ${relatedNames ? `<p><span class="font-semibold text-emerald-700">연관 도서:</span> ${relatedNames}</p>` : ''}
+                ${contrastNames ? `<p><span class="font-semibold text-amber-700">비교 도서:</span> ${contrastNames}</p>` : ''}
+              </div>
+            `;
+            recCard.querySelector('.open-rec-detail-btn').onclick = () => openRecommendModal(book.id);
+            quotesBody.appendChild(recCard);
+          }
+
+          card.appendChild(quotesBody);
+        }
+
+        booksList.appendChild(card);
+      });
+    }
+
+    function escapeHtml(str) {
+      return str
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+    }
+
+    function syncBookFormWithCurrentBook(preferredBookId) {
+      const targetId = preferredBookId || targetBookSelect.value;
+      const currentBook =
+        booksDB.find((b) => b.id === targetId) ||
+        booksDB.find((b) => (b.startedAt || '').trim() && !(b.finishedAt || '').trim()) ||
+        getMostRecentQuotedBook();
+
+      if (!currentBook) {
+        bookFormSelect.value = '';
+        bookTitleInput.value = '';
+        bookAuthorInput.value = '';
+        bookStartDateInput.value = '';
+        bookEndDateInput.value = '';
+        bookFormSubmitLabel.textContent = '도서 DB에 추가';
+        return;
+      }
+
+      bookFormSelect.value = currentBook.id;
+      bookTitleInput.value = currentBook.title || '';
+      bookAuthorInput.value = currentBook.author || '';
+      bookStartDateInput.value = currentBook.startedAt || '';
+      bookEndDateInput.value = currentBook.finishedAt || '';
+      bookFormSubmitLabel.textContent = '도서 정보 업데이트';
+    }
+
+    function clearBookFormForNewEntry() {
+      bookFormSelect.value = '';
+      bookTitleInput.value = '';
+      bookAuthorInput.value = '';
+      bookStartDateInput.value = '';
+      bookEndDateInput.value = '';
+      bookFormSubmitLabel.textContent = '도서 DB에 추가';
+      bookTitleInput.focus();
+    }
+
+    function renderAll(preferredBookId) {
+      renderSpotlightAndStats();
+      renderBookSelect(preferredBookId);
+      syncBookFormWithCurrentBook(preferredBookId);
+      renderBooksList();
+    }
+
+    bookFormSelect.addEventListener('change', () => {
+      const selectedId = bookFormSelect.value;
+      if (!selectedId) {
+        clearBookFormForNewEntry();
+        return;
+      }
+      targetBookSelect.value = selectedId;
+      syncBookFormWithCurrentBook(selectedId);
+    });
+
+    targetBookSelect.addEventListener('change', () => {
+      syncBookFormWithCurrentBook(targetBookSelect.value);
+    });
+
+    resetBookFormBtn.addEventListener('click', clearBookFormForNewEntry);
+
+    // 새 도서 등록 및 기존 도서 정보 업데이트
+    bookForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const title = bookTitleInput.value.trim();
+      const author = bookAuthorInput.value.trim();
+      const startedAt = bookStartDateInput.value;
+      const finishedAt = bookEndDateInput.value;
+      if (!title || !author) return;
+
+      const selectedId = bookFormSelect.value;
+      const existingById = selectedId ? booksDB.find((b) => b.id === selectedId) : null;
+      const existingByName = booksDB.find(
+        (b) =>
+          b.title.toLowerCase() === title.toLowerCase() &&
+          b.author.toLowerCase() === author.toLowerCase()
+      );
+      const existing = existingById || existingByName;
+
+      let targetId;
+      const now = Date.now();
+      if (existing) {
+        existing.title = title;
+        existing.author = author;
+        existing.startedAt = startedAt;
+        existing.finishedAt = finishedAt;
+        existing.updatedAt = now;
+        targetId = existing.id;
+        showToast(`'${title}' 도서 정보가 업데이트되었습니다.`);
+      } else {
+        const newBook = {
+          id: crypto.randomUUID(),
+          title,
+          author,
+          startedAt,
+          finishedAt,
+          createdAt: now,
+          updatedAt: now,
+          quotes: [],
+        };
+        booksDB.push(newBook);
+        targetId = newBook.id;
+        showToast(`'${title}' 도서가 등록되었습니다.`);
+      }
+
+      expandedBookIds.add(targetId);
+      saveDB();
+      renderAll(targetId);
+      quotePageInput.focus();
+    });
+
+    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+      quotePageInput.setAttribute('inputmode', 'numeric');
+    }
+
+    quotePageInput.addEventListener('input', () => {
+      quotePageInput.value = quotePageInput.value.replace(/[^0-9]/g, '');
+    });
+
+    // 도서 하위 문장 & 페이지 등록
+    quoteForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const bookId = targetBookSelect.value;
+      const page = quotePageInput.value.trim();
+      const text = quoteTextInput.value.trim();
+      if (!bookId || !page || !text) return;
+
+      const book = booksDB.find((b) => b.id === bookId);
+      if (!book) return;
+
+      const now = Date.now();
+      if (!book.quotes) book.quotes = [];
+      book.quotes.push({
+        id: crypto.randomUUID(),
+        page: Number(page),
+        text,
+        createdAt: now,
+      });
+      book.updatedAt = now;
+      book.lastQuoteAt = now;
+
+      expandedBookIds.add(book.id);
+      quotePageInput.value = '';
+      quoteTextInput.value = '';
+
+      saveDB();
+      renderAll(book.id);
+      quoteTextInput.focus();
+    });
+
+    searchInput.addEventListener('input', renderBooksList);
+
+    // ========================
+    // Google Drive Sync & Backup
+    // ========================
+    function getSavedClientId() {
+      return (localStorage.getItem(CLIENT_ID_KEY) || '').trim();
+    }
+
+    function updateSyncUI() {
+      const isConnected = Boolean(accessToken);
+      const hasClientId = Boolean(getSavedClientId());
+
+      if (isSyncing) {
+        syncStatusDot.className = 'h-2 w-2 animate-pulse rounded-full bg-amber-500';
+        syncStatusLabel.textContent = '동기화 중...';
+        modalStatusDot.className = 'h-2.5 w-2.5 animate-pulse rounded-full bg-amber-500';
+        modalStatusText.textContent = 'Google Drive와 동기화 중...';
+      } else if (isConnected) {
+        syncStatusDot.className = 'h-2 w-2 rounded-full bg-emerald-500';
+        syncStatusLabel.textContent = '드라이브 연결됨';
+        modalStatusDot.className = 'h-2.5 w-2.5 rounded-full bg-emerald-500';
+        modalStatusText.textContent = 'Google Drive 연결됨';
+      } else if (hasClientId && syncMeta.wasConnected) {
+        syncStatusDot.className = 'h-2 w-2 rounded-full bg-amber-400';
+        syncStatusLabel.textContent = '드라이브 재연결';
+        modalStatusDot.className = 'h-2.5 w-2.5 rounded-full bg-amber-400';
+        modalStatusText.textContent = '세션 만료 · 다시 로그인하여 동기화';
+      } else {
+        syncStatusDot.className = 'h-2 w-2 rounded-full bg-stone-300';
+        syncStatusLabel.textContent = '드라이브 동기화';
+        modalStatusDot.className = 'h-2.5 w-2.5 rounded-full bg-stone-300';
+        modalStatusText.textContent = hasClientId ? '로그인 필요' : '클라이언트 ID 설정 필요';
+      }
+
+      if (syncMeta.lastSyncedAt) {
+        modalSyncMeta.textContent = `저장 위치: 내 드라이브 / ${DRIVE_FOLDER_NAME} / ${DRIVE_FILE_NAME} · 마지막 동기화: ${formatRelativeTime(syncMeta.lastSyncedAt)}`;
+      } else {
+        modalSyncMeta.textContent = `저장 위치: 내 드라이브 / ${DRIVE_FOLDER_NAME} / ${DRIVE_FILE_NAME}`;
+      }
+
+      googleAuthBtnLabel.textContent = isConnected ? '계정 다시 연결' : 'Google 로그인';
+      googleSignOutBtn.classList.toggle('hidden', !isConnected);
+      syncActionsPanel.classList.toggle('hidden', !isConnected);
+      autoSyncToggle.checked = Boolean(syncMeta.autoSync);
+    }
+
+    function openSyncModal() {
+      clientIdInput.value = getSavedClientId();
+      const isFile = location.protocol === 'file:';
+      fileProtocolWarning.classList.toggle('hidden', !isFile);
+      currentOriginText.textContent = isFile ? 'http://localhost (로컬 파일 불가)' : location.origin;
+      updateSyncUI();
+      syncModal.classList.remove('hidden');
+      syncModal.classList.add('flex');
+    }
+
+    function closeSyncModal() {
+      syncModal.classList.add('hidden');
+      syncModal.classList.remove('flex');
+    }
+
+    async function driveFetch(url, options = {}) {
+      if (!accessToken) throw new Error('로그인이 필요합니다.');
+      const res = await fetch(url, {
+        ...options,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          ...(options.headers || {}),
+        },
+      });
+
+      if (res.status === 401) {
+        saveSessionToken(null);
+        updateSyncUI();
+        throw new Error('Google 인증이 만료되었습니다. 다시 로그인해 주세요.');
+      }
+      if (!res.ok) {
+        const msg = await res.text().catch(() => '');
+        throw new Error(`Drive API 오류 (${res.status}): ${msg.slice(0, 120)}`);
+      }
+      return res;
+    }
+
+    async function ensureDriveFolderId() {
+      if (syncMeta.driveFolderId) {
+        try {
+          const check = await driveFetch(
+            `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(syncMeta.driveFolderId)}?fields=id,trashed`
+          );
+          const meta = await check.json();
+          if (meta && meta.id && !meta.trashed) return meta.id;
+        } catch {
+          syncMeta.driveFolderId = '';
+        }
+      }
+
+      const folderQuery = encodeURIComponent(
+        `name='${DRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`
+      );
+      const searchRes = await driveFetch(
+        `https://www.googleapis.com/drive/v3/files?q=${folderQuery}&spaces=drive&fields=files(id,name)&orderBy=createdTime asc`
+      );
+      const searchData = await searchRes.json();
+      if (searchData.files && searchData.files.length > 0) {
+        syncMeta.driveFolderId = searchData.files[0].id;
+        saveSyncMeta();
+        return syncMeta.driveFolderId;
+      }
+
+      const createRes = await driveFetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: DRIVE_FOLDER_NAME,
+          mimeType: 'application/vnd.google-apps.folder',
+        }),
+      });
+      const created = await createRes.json();
+      syncMeta.driveFolderId = created.id;
+      saveSyncMeta();
+      return created.id;
+    }
+
+    async function findDriveFileId() {
+      const folderId = await ensureDriveFolderId();
+
+      if (syncMeta.driveFileId) {
+        try {
+          const check = await driveFetch(
+            `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(syncMeta.driveFileId)}?fields=id,trashed,parents`
+          );
+          const meta = await check.json();
+          if (meta && meta.id && !meta.trashed && Array.isArray(meta.parents) && meta.parents.includes(folderId)) {
+            return meta.id;
+          }
+        } catch {
+          syncMeta.driveFileId = '';
+        }
+      }
+
+      const query = encodeURIComponent(
+        `name='${DRIVE_FILE_NAME}' and '${folderId}' in parents and trashed=false`
+      );
+      const res = await driveFetch(
+        `https://www.googleapis.com/drive/v3/files?q=${query}&spaces=drive&fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc`
+      );
+      const data = await res.json();
+      const fileId = data.files && data.files.length > 0 ? data.files[0].id : '';
+      syncMeta.driveFileId = fileId;
+      saveSyncMeta();
+      return fileId;
+    }
+
+    function extractBooksPayload(raw) {
+      if (Array.isArray(raw)) {
+        return { books: raw, updatedAt: 0 };
+      }
+      if (raw && Array.isArray(raw.books)) {
+        return { books: raw.books, updatedAt: Number(raw.updatedAt || 0) };
+      }
+      throw new Error('올바른 독서 데이터베이스 형식이 아닙니다.');
+    }
+
+    async function downloadDrivePayload(fileId) {
+      const res = await driveFetch(
+        `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media`
+      );
+      const json = await res.json();
+      return extractBooksPayload(json);
+    }
+
+    async function uploadDrivePayload(fileId) {
+      const payload = {
+        version: 1,
+        updatedAt: syncMeta.localModifiedAt || Date.now(),
+        books: booksDB,
+      };
+      const jsonStr = JSON.stringify(payload, null, 2);
+
+      if (fileId) {
+        const res = await driveFetch(
+          `https://www.googleapis.com/upload/drive/v3/files/${encodeURIComponent(fileId)}?uploadType=media`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: jsonStr,
+          }
+        );
+        const updated = await res.json();
+        return updated.id || fileId;
+      }
+
+      const folderId = await ensureDriveFolderId();
+      const boundary = 'reading_archive_boundary_' + Date.now();
+      const metadata = JSON.stringify({
+        name: DRIVE_FILE_NAME,
+        mimeType: 'application/json',
+        parents: [folderId],
+      });
+      const body =
+        `--${boundary}\r\n` +
+        `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+        `${metadata}\r\n` +
+        `--${boundary}\r\n` +
+        `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+        `${jsonStr}\r\n` +
+        `--${boundary}--`;
+
+      const res = await driveFetch(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+          body,
+        }
+      );
+      const created = await res.json();
+      return created.id;
+    }
+
+    function mergeBooks(localList, remoteList) {
+      const mergedMap = new Map();
+      const keyFor = (b) => `${(b.title || '').trim().toLowerCase()}::${(b.author || '').trim().toLowerCase()}`;
+
+      const addBook = (book) => {
+        const k = keyFor(book);
+        const existing = mergedMap.get(k);
+        if (!existing) {
+          mergedMap.set(k, {
+            ...book,
+            quotes: [...(book.quotes || [])],
+          });
+          return;
+        }
+
+        const quoteKeys = new Set(
+          existing.quotes.map((q) => `${q.id}::${Number(q.page)}::${(q.text || '').trim()}`)
+        );
+        (book.quotes || []).forEach((q) => {
+          const dupById = existing.quotes.some((eq) => eq.id === q.id);
+          const dupByContent = existing.quotes.some(
+            (eq) => Number(eq.page) === Number(q.page) && (eq.text || '').trim() === (q.text || '').trim()
+          );
+          if (!dupById && !dupByContent && !quoteKeys.has(`${q.id}::${Number(q.page)}::${(q.text || '').trim()}`)) {
+            existing.quotes.push({ ...q });
+          }
+        });
+
+        existing.updatedAt = Math.max(existing.updatedAt || 0, book.updatedAt || 0);
+        if (existing.quotes.length > 0) {
+          existing.lastQuoteAt = Math.max(...existing.quotes.map((q) => q.createdAt || 0));
+        }
+      };
+
+      remoteList.forEach(addBook);
+      localList.forEach(addBook);
+      return Array.from(mergedMap.values());
+    }
+
+    async function pushToDrive(silent = false) {
+      if (!accessToken || isSyncing) return;
+      isSyncing = true;
+      updateSyncUI();
+      try {
+        const fileId = await findDriveFileId();
+        const savedId = await uploadDrivePayload(fileId);
+        syncMeta.driveFileId = savedId;
+        syncMeta.lastSyncedAt = Date.now();
+        saveSyncMeta();
+        if (!silent) showToast('Google Drive에 저장되었습니다.');
+      } catch (err) {
+        showToast(err.message || '드라이브 저장 중 오류가 발생했습니다.');
+      } finally {
+        isSyncing = false;
+        updateSyncUI();
+      }
+    }
+
+    async function pullFromDrive(silent = false) {
+      if (!accessToken || isSyncing) return;
+      isSyncing = true;
+      updateSyncUI();
+      try {
+        const fileId = await findDriveFileId();
+        if (!fileId) {
+          if (!silent) showToast('드라이브에 저장된 파일이 아직 없습니다.');
+          return;
+        }
+        const remote = await downloadDrivePayload(fileId);
+        booksDB = remote.books;
+        expandedBookIds.clear();
+        syncMeta.localModifiedAt = remote.updatedAt || Date.now();
+        syncMeta.lastSyncedAt = Date.now();
+        saveDB(false);
+        saveSyncMeta();
+        renderAll();
+        if (!silent) showToast('Google Drive에서 데이터를 불러왔습니다.');
+      } catch (err) {
+        showToast(err.message || '드라이브 불러오기 중 오류가 발생했습니다.');
+      } finally {
+        isSyncing = false;
+        updateSyncUI();
+      }
+    }
+
+    async function mergeWithDrive() {
+      if (!accessToken || isSyncing) return;
+      isSyncing = true;
+      updateSyncUI();
+      try {
+        const fileId = await findDriveFileId();
+        if (!fileId) {
+          const createdId = await uploadDrivePayload('');
+          syncMeta.driveFileId = createdId;
+        } else {
+          const remote = await downloadDrivePayload(fileId);
+          booksDB = mergeBooks(booksDB, remote.books);
+          syncMeta.localModifiedAt = Date.now();
+          saveDB(false);
+          const savedId = await uploadDrivePayload(fileId);
+          syncMeta.driveFileId = savedId;
+          renderAll();
+        }
+        syncMeta.lastSyncedAt = Date.now();
+        saveSyncMeta();
+        showToast('로컬과 Google Drive 데이터를 병합했습니다.');
+      } catch (err) {
+        showToast(err.message || '병합 중 오류가 발생했습니다.');
+      } finally {
+        isSyncing = false;
+        updateSyncUI();
+      }
+    }
+
+    async function handleInitialSyncAfterAuth() {
+      isSyncing = true;
+      updateSyncUI();
+      try {
+        const fileId = await findDriveFileId();
+        if (!fileId) {
+          const createdId = await uploadDrivePayload('');
+          syncMeta.driveFileId = createdId;
+          syncMeta.lastSyncedAt = Date.now();
+          saveSyncMeta();
+          showToast('Google Drive에 새 동기화 파일을 생성했습니다.');
+          return;
+        }
+
+        const remote = await downloadDrivePayload(fileId);
+        if (!syncMeta.localModifiedAt || remote.updatedAt > syncMeta.localModifiedAt) {
+          booksDB = remote.books;
+          expandedBookIds.clear();
+          syncMeta.localModifiedAt = remote.updatedAt || Date.now();
+          saveDB(false);
+          renderAll();
+          showToast('Google Drive에서 최신 데이터를 불러왔습니다.');
+        } else if (syncMeta.localModifiedAt > remote.updatedAt) {
+          await uploadDrivePayload(fileId);
+          showToast('현재 기기의 최신 데이터를 Google Drive에 반영했습니다.');
+        } else {
+          showToast('Google Drive와 연결되었습니다.');
+        }
+        syncMeta.lastSyncedAt = Date.now();
+        saveSyncMeta();
+      } catch (err) {
+        showToast(err.message || '초기 동기화 중 오류가 발생했습니다.');
+      } finally {
+        isSyncing = false;
+        updateSyncUI();
+      }
+    }
+
+    function startGoogleLogin() {
+      if (location.protocol === 'file:') {
+        showToast('file:// 경로에서는 Google 로그인을 사용할 수 없습니다.');
+        return;
+      }
+      const clientId = getSavedClientId();
+      if (!clientId) {
+        showToast('먼저 Google OAuth 클라이언트 ID를 입력하고 저장해 주세요.');
+        clientIdInput.focus();
+        return;
+      }
+      if (!window.google || !google.accounts || !google.accounts.oauth2) {
+        showToast('Google 인증 스크립트를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: DRIVE_SCOPE,
+        callback: (resp) => {
+          if (resp.error) {
+            showToast(`Google 로그인 실패: ${resp.error}`);
+            return;
+          }
+          saveSessionToken(resp.access_token, Number(resp.expires_in || 3500));
+          syncMeta.wasConnected = true;
+          saveSyncMeta();
+          updateSyncUI();
+          handleInitialSyncAfterAuth();
+        },
+      });
+      tokenClient.requestAccessToken({ prompt: (accessToken || syncMeta.wasConnected) ? '' : 'consent' });
+    }
+
+    // Event Listeners for Sync Modal & Backup
+    syncModalBtn.addEventListener('click', openSyncModal);
+    closeSyncModalBtn.addEventListener('click', closeSyncModal);
+    syncModal.addEventListener('click', (e) => {
+      if (e.target === syncModal) closeSyncModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !syncModal.classList.contains('hidden')) {
+        closeSyncModal();
+      }
+    });
+
+    saveClientIdBtn.addEventListener('click', () => {
+      const val = clientIdInput.value.trim();
+      localStorage.setItem(CLIENT_ID_KEY, val);
+      updateSyncUI();
+      showToast(val ? '클라이언트 ID가 저장되었습니다.' : '클라이언트 ID가 초기화되었습니다.');
+    });
+
+    copyOriginBtn.addEventListener('click', async () => {
+      if (location.protocol === 'file:') return;
+      try {
+        await navigator.clipboard.writeText(location.origin);
+        showToast('현재 Origin 주소가 복사되었습니다.');
+      } catch {
+        showToast('복사에 실패했습니다. 직접 선택해 복사해 주세요.');
+      }
+    });
+
+    googleAuthBtn.addEventListener('click', startGoogleLogin);
+    googleSignOutBtn.addEventListener('click', () => {
+      if (accessToken && window.google && google.accounts && google.accounts.oauth2) {
+        google.accounts.oauth2.revoke(accessToken, () => {});
+      }
+      saveSessionToken(null);
+      syncMeta.wasConnected = false;
+      saveSyncMeta();
+      updateSyncUI();
+      showToast('Google Drive 연결이 해제되었습니다.');
+    });
+
+    pushDriveBtn.addEventListener('click', () => pushToDrive(false));
+    pullDriveBtn.addEventListener('click', () => {
+      if (!confirm('현재 기기의 데이터를 Google Drive 데이터로 덮어쓸까요?')) return;
+      pullFromDrive(false);
+    });
+    mergeDriveBtn.addEventListener('click', mergeWithDrive);
+
+    autoSyncToggle.addEventListener('change', () => {
+      syncMeta.autoSync = autoSyncToggle.checked;
+      saveSyncMeta();
+      showToast(syncMeta.autoSync ? '자동 동기화가 켜졌습니다.' : '자동 동기화가 꺼졌습니다.');
+    });
+
+    exportJsonBtn.addEventListener('click', () => {
+      const dataStr = JSON.stringify({ version: 1, updatedAt: Date.now(), books: booksDB }, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const today = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `reading_archive_${today}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('JSON 백업 파일을 다운로드했습니다.');
+    });
+
+    importJsonInput.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const parsed = extractBooksPayload(JSON.parse(text));
+        if (!confirm(`불러온 도서 ${parsed.books.length}권으로 현재 데이터를 교체할까요?`)) return;
+        booksDB = parsed.books;
+        expandedBookIds.clear();
+        saveDB(true);
+        renderAll();
+        showToast('JSON 데이터를 성공적으로 불러왔습니다.');
+      } catch (err) {
+        showToast(err.message || 'JSON 파일을 읽을 수 없습니다.');
+      } finally {
+        importJsonInput.value = '';
+      }
+    });
+
+    // ========================
+    // Google Docs 출력 기능
+    // ========================
+    function buildGoogleDocHtml(books, docTitle) {
+      const nowStr = new Date().toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
+      const sectionsHtml = books
+        .map((book) => {
+          const quotes = [...(book.quotes || [])].sort((a, b) => Number(a.page) - Number(b.page));
+          const quotesHtml =
+            quotes.length === 0
+              ? '<p style="color:#78716c;font-style:italic;">저장된 문장이 없습니다.</p>'
+              : quotes
+                  .map(
+                    (q) => `
+                    <div style="margin-bottom:14px;padding:10px 14px;border-left:3px solid #292524;background-color:#fafaf9;">
+                      <p style="margin:0 0 4px 0;font-size:11px;color:#57534e;font-weight:bold;">p.${escapeHtml(String(q.page))}</p>
+                      <p style="margin:0;font-size:13px;line-height:1.65;color:#1c1917;">“${escapeHtml(q.text || '')}”</p>
+                    </div>`
+                  )
+                  .join('');
+
+          const periodText = formatReadingPeriod(book);
+          const reviewText = (book.review || '').trim();
+          const reviewHtml = reviewText
+            ? `
+              <div style="margin-bottom:16px;padding:12px 14px;border:1px solid #e7e5e4;background-color:#ffffff;">
+                <p style="margin:0 0 6px 0;font-size:12px;font-weight:bold;color:#44403c;">도서 감상문</p>
+                <p style="margin:0;font-size:13px;line-height:1.7;color:#1c1917;white-space:pre-wrap;">${escapeHtml(reviewText)}</p>
+              </div>
+            `
+            : '';
+
+          return `
+            <section style="margin-bottom:28px;">
+              <h2 style="margin:0 0 4px 0;font-size:18px;color:#1c1917;">${escapeHtml(book.title)}</h2>
+              <p style="margin:0 0 14px 0;font-size:12px;color:#57534e;">저자: ${escapeHtml(book.author)}${periodText ? ` · 독서 기간: ${escapeHtml(periodText)}` : ''} · 수집된 문장 ${quotes.length}개</p>
+              ${reviewHtml}
+              ${quotesHtml}
+            </section>
+            <hr style="border:none;border-top:1px solid #e7e5e4;margin:20px 0;" />
+          `;
+        })
+        .join('');
+
+      return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>${escapeHtml(docTitle)}</title>
+</head>
+<body style="font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;color:#1c1917;max-width:720px;margin:0 auto;">
+  <h1 style="margin:0 0 6px 0;font-size:22px;color:#0c0a09;">${escapeHtml(docTitle)}</h1>
+  <p style="margin:0 0 20px 0;font-size:12px;color:#78716c;">출력일: ${escapeHtml(nowStr)} · 총 ${books.length}권</p>
+  <hr style="border:none;border-top:2px solid #1c1917;margin:0 0 24px 0;" />
+  ${sectionsHtml}
+</body>
+</html>`;
+    }
+
+    async function exportBooksToGoogleDocs(books, docName) {
+      if (!books || books.length === 0) {
+        showToast('출력할 도서가 없습니다.');
+        return;
+      }
+      if (!accessToken) {
+        showToast('Google Drive 로그인 후 Google Docs로 저장할 수 있습니다.');
+        openSyncModal();
+        return;
+      }
+      if (isSyncing) {
+        showToast('다른 동기화 작업이 진행 중입니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+
+      isSyncing = true;
+      updateSyncUI();
+      showToast(`'${docName}' 문서를 Google Docs로 생성하는 중...`);
+
+      try {
+        const folderId = await ensureDriveFolderId();
+        const htmlContent = buildGoogleDocHtml(books, docName);
+        const boundary = 'reading_archive_doc_boundary_' + Date.now();
+        const metadata = JSON.stringify({
+          name: docName,
+          mimeType: 'application/vnd.google-apps.document',
+          parents: [folderId],
+        });
+
+        const body =
+          `--${boundary}\r\n` +
+          `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+          `${metadata}\r\n` +
+          `--${boundary}\r\n` +
+          `Content-Type: text/html; charset=UTF-8\r\n\r\n` +
+          `${htmlContent}\r\n` +
+          `--${boundary}--`;
+
+        const res = await driveFetch(
+          'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
+            body,
+          }
+        );
+        const created = await res.json();
+        const docUrl = created.webViewLink || `https://docs.google.com/document/d/${created.id}/edit`;
+        showToast(`'${docName}' Google Docs 저장 완료`, docUrl, '문서 열기 ↗');
+      } catch (err) {
+        showToast(err.message || 'Google Docs 출력 중 오류가 발생했습니다.');
+      } finally {
+        isSyncing = false;
+        updateSyncUI();
+      }
+    }
+
+    function getFilteredBooksForExport() {
+      const keyword = searchInput.value.trim().toLowerCase();
+      const sortedBooks = [...booksDB].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      return sortedBooks.filter((book) => {
+        if (!keyword) return true;
+        const inBook =
+          book.title.toLowerCase().includes(keyword) ||
+          book.author.toLowerCase().includes(keyword);
+        const inQuotes = (book.quotes || []).some((q) =>
+          q.text.toLowerCase().includes(keyword)
+        );
+        const inReview = (book.review || '').toLowerCase().includes(keyword);
+        return inBook || inQuotes || inReview;
+      });
+    }
+
+    exportMenuBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      exportMenuDropdown.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!exportMenuContainer.contains(e.target)) {
+        exportMenuDropdown.classList.add('hidden');
+      }
+    });
+
+    exportAllDocsBtn.addEventListener('click', () => {
+      exportMenuDropdown.classList.add('hidden');
+      const today = new Date().toISOString().slice(0, 10);
+      const sorted = [...booksDB].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      exportBooksToGoogleDocs(sorted, `독서 문장 아카이브 (${today})`);
+    });
+
+    exportFilteredDocsBtn.addEventListener('click', () => {
+      exportMenuDropdown.classList.add('hidden');
+      const filtered = getFilteredBooksForExport();
+      const keyword = searchInput.value.trim();
+      const today = new Date().toISOString().slice(0, 10);
+      const name = keyword ? `독서 문장 아카이브 - ${keyword} (${today})` : `독서 문장 아카이브 (${today})`;
+      exportBooksToGoogleDocs(filtered, name);
+    });
+
+    printArchiveBtn.addEventListener('click', () => {
+      exportMenuDropdown.classList.add('hidden');
+      window.print();
+    });
+
+    // ========================
+    // AI 문장 분석 & 도서 추천
+    // ========================
+    function getSavedGeminiKey() {
+      return (localStorage.getItem(GEMINI_KEY_STORAGE) || '').trim();
+    }
+
+    function updateGeminiKeyUI() {
+      const key = getSavedGeminiKey();
+      geminiApiKeyInput.value = key;
+      if (key) {
+        geminiKeyStatusBadge.textContent = '설정됨';
+        geminiKeyStatusBadge.className = 'rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700';
+      } else {
+        geminiKeyStatusBadge.textContent = '미설정';
+        geminiKeyStatusBadge.className = 'rounded-full bg-stone-200 px-2 py-0.5 text-[10px] text-stone-600';
+        geminiKeyDetails.open = true;
+      }
+    }
+
+    function renderRecommendListItems(container, items, badgeLabel, badgeClass) {
+      container.innerHTML = '';
+      if (!items || items.length === 0) {
+        container.innerHTML = '<p class="text-xs text-stone-400">추천 도서 정보가 없습니다.</p>';
+        return;
+      }
+      items.forEach((item) => {
+        const card = document.createElement('div');
+        card.className = 'rounded-xl border border-stone-200/80 bg-white p-3.5';
+        card.innerHTML = `
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <span class="text-sm font-semibold text-stone-900">${escapeHtml(item.title || '')}</span>
+              <span class="ml-1.5 text-xs text-stone-500">${escapeHtml(item.author || '')}</span>
+            </div>
+            <span class="rounded-full px-2 py-0.5 text-[10px] font-medium ${badgeClass}">${badgeLabel}</span>
+          </div>
+          <p class="mt-1.5 text-xs leading-relaxed text-stone-600">${escapeHtml(item.reason || '')}</p>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderRecommendModalContent(book) {
+      recommendLoadingState.classList.add('hidden');
+      if (!book || !book.recommendation) {
+        recommendResultContainer.classList.add('hidden');
+        recommendEmptyState.classList.remove('hidden');
+        return;
+      }
+
+      const rec = book.recommendation;
+      recommendEmptyState.classList.add('hidden');
+      recommendResultContainer.classList.remove('hidden');
+
+      recommendThemeSummary.textContent = rec.themeSummary || '';
+      recommendThemeTags.innerHTML = '';
+      (rec.coreThemes || []).forEach((theme) => {
+        const tag = document.createElement('span');
+        tag.className = 'rounded-full bg-white px-2.5 py-0.5 text-[11px] font-medium text-stone-700 ring-1 ring-stone-200';
+        tag.textContent = `#${theme}`;
+        recommendThemeTags.appendChild(tag);
+      });
+
+      renderRecommendListItems(
+        recommendRelatedList,
+        rec.relatedBooks,
+        '연관 도서',
+        'bg-emerald-50 text-emerald-700'
+      );
+      renderRecommendListItems(
+        recommendContrastingList,
+        rec.contrastingBooks,
+        '비교·상반 도서',
+        'bg-amber-50 text-amber-700'
+      );
+
+      recommendMetaInfo.textContent = `분석 문장 ${rec.quoteCount || (book.quotes || []).length}개 · ${formatRelativeTime(rec.analyzedAt)}`;
+    }
+
+    function openRecommendModal(bookId) {
+      const book = booksDB.find((b) => b.id === bookId);
+      if (!book) return;
+      if (!book.quotes || book.quotes.length === 0) {
+        showToast('먼저 이 책에 인상적인 문장을 1개 이상 기록해 주세요.');
+        return;
+      }
+
+      activeRecommendBookId = bookId;
+      recommendBookSubtitle.textContent = `${book.title} — ${book.author} (문장 ${book.quotes.length}개)`;
+      updateGeminiKeyUI();
+      renderRecommendModalContent(book);
+
+      recommendModal.classList.remove('hidden');
+      recommendModal.classList.add('flex');
+
+      // 저장된 추천 결과가 없고 API 키가 있으면 바로 분석 실행
+      if (!book.recommendation && getSavedGeminiKey()) {
+        runBookRecommendationAnalysis(book);
+      }
+    }
+
+    function closeRecommendModal() {
+      recommendModal.classList.add('hidden');
+      recommendModal.classList.remove('flex');
+      activeRecommendBookId = null;
+    }
+
+    async function runBookRecommendationAnalysis(book) {
+      const apiKey = getSavedGeminiKey();
+      if (!apiKey) {
+        geminiKeyDetails.open = true;
+        geminiApiKeyInput.focus();
+        showToast('먼저 Gemini API 키를 입력하고 저장해 주세요.');
+        return;
+      }
+
+      const quotes = [...(book.quotes || [])].sort((a, b) => Number(a.page) - Number(b.page));
+      if (quotes.length === 0) {
+        showToast('분석할 문장이 없습니다.');
+        return;
+      }
+
+      recommendEmptyState.classList.add('hidden');
+      recommendResultContainer.classList.add('hidden');
+      recommendLoadingState.classList.remove('hidden');
+
+      const quotesText = quotes.map((q) => `- [p.${q.page}] "${q.text}"`).join('\n');
+      const prompt = `다음은 독자가 책 '${book.title}' (저자: ${book.author})을 읽으며 기록한 인상적인 문장들입니다.\n\n${quotesText}\n\n이 문장들을 종합적으로 분석하여 다음 JSON 형식으로만 한국어로 응답해 주세요:\n{\n  "themeSummary": "기록된 문장들이 관통하는 핵심 주제와 독자의 관심사를 2~3문장으로 요약",\n  "coreThemes": ["핵심키워드1", "핵심키워드2", "핵심키워드3"],\n  "relatedBooks": [\n    { "title": "연관 책 제목", "author": "저자", "reason": "핵심 주제와 어떻게 연결되어 깊이를 더해줄 수 있는지 1~2문장 설명" }\n  ],\n  "contrastingBooks": [\n    { "title": "상반되거나 비교할 책 제목", "author": "저자", "reason": "어떤 상반된 관점이나 비교 포인트를 제공하는지 1~2문장 설명" }\n  ]\n}\nrelatedBooks는 2~3권, contrastingBooks는 2~3권을 추천해 주세요. 실제 존재하는 검증된 도서만 추천하세요.`;
+
+      async function getAvailableGeminiModels() {
+        const fallbackList = ['gemini-2.5-flash-lite', 'gemini-3-flash-preview', 'gemini-2.0-flash', 'gemini-2.5-flash'];
+        try {
+          const listRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
+          );
+          if (!listRes.ok) return fallbackList;
+          const listData = await listRes.json();
+          const candidates = (listData.models || [])
+            .filter(
+              (m) =>
+                Array.isArray(m.supportedGenerationMethods) &&
+                m.supportedGenerationMethods.includes('generateContent') &&
+                typeof m.name === 'string' &&
+                m.name.includes('gemini') &&
+                !/(embedding|imagen|veo|tts|image|audio|robotics|computer-use)/i.test(m.name)
+            )
+            .map((m) => m.name.replace(/^models\//, ''));
+
+          if (candidates.length === 0) return fallbackList;
+
+          // flash 모델을 우선 정렬하고 최신 버전이 먼저 오도록 배치
+          candidates.sort((a, b) => {
+            const aFlash = a.includes('flash') ? 1 : 0;
+            const bFlash = b.includes('flash') ? 1 : 0;
+            if (aFlash !== bFlash) return bFlash - aFlash;
+            return b.localeCompare(a, undefined, { numeric: true });
+          });
+          return candidates.slice(0, 6);
+        } catch {
+          return fallbackList;
+        }
+      }
+
+      try {
+        const modelsToTry = await getAvailableGeminiModels();
+        let data = null;
+        let lastErrorMsg = '사용 가능한 Gemini 모델을 찾지 못했습니다.';
+
+        for (const modelName of modelsToTry) {
+          const res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent?key=${encodeURIComponent(apiKey)}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                  responseMimeType: 'application/json',
+                  temperature: 0.7,
+                },
+              }),
+            }
+          );
+
+          if (res.ok) {
+            data = await res.json();
+            break;
+          }
+
+          const errData = await res.json().catch(() => ({}));
+          lastErrorMsg = (errData.error && errData.error.message) || `API 오류 (${res.status})`;
+          // API 키 자체 오류(401/403 등)면 즉시 중단
+          if (res.status === 401 || res.status === 403) {
+            throw new Error(lastErrorMsg);
+          }
+        }
+
+        if (!data) {
+          throw new Error(lastErrorMsg);
+        }
+        const rawText =
+          data.candidates &&
+          data.candidates[0] &&
+          data.candidates[0].content &&
+          data.candidates[0].content.parts &&
+          data.candidates[0].content.parts[0] &&
+          data.candidates[0].content.parts[0].text;
+
+        if (!rawText) throw new Error('AI 응답을 받지 못했습니다.');
+
+        const parsed = JSON.parse(rawText);
+        book.recommendation = {
+          themeSummary: parsed.themeSummary || '',
+          coreThemes: Array.isArray(parsed.coreThemes) ? parsed.coreThemes : [],
+          relatedBooks: Array.isArray(parsed.relatedBooks) ? parsed.relatedBooks : [],
+          contrastingBooks: Array.isArray(parsed.contrastingBooks) ? parsed.contrastingBooks : [],
+          analyzedAt: Date.now(),
+          quoteCount: quotes.length,
+        };
+        book.updatedAt = Date.now();
+        expandedBookIds.add(book.id);
+
+        saveDB(true);
+        renderAll(book.id);
+        renderRecommendModalContent(book);
+        showToast('문장 분석 및 도서 추천이 데이터베이스에 저장되었습니다.');
+      } catch (err) {
+        renderRecommendModalContent(book);
+        showToast(`분석 실패: ${err.message || '오류가 발생했습니다.'}`);
+      }
+    }
+
+    closeRecommendModalBtn.addEventListener('click', closeRecommendModal);
+    recommendModal.addEventListener('click', (e) => {
+      if (e.target === recommendModal) closeRecommendModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !recommendModal.classList.contains('hidden')) {
+        closeRecommendModal();
+      }
+    });
+
+    saveGeminiKeyBtn.addEventListener('click', () => {
+      const val = geminiApiKeyInput.value.trim();
+      localStorage.setItem(GEMINI_KEY_STORAGE, val);
+      updateGeminiKeyUI();
+      if (val) {
+        geminiKeyDetails.open = false;
+        showToast('Gemini API 키가 저장되었습니다.');
+      } else {
+        showToast('Gemini API 키가 초기화되었습니다.');
+      }
+    });
+
+    startAnalyzeBtn.addEventListener('click', () => {
+      const book = booksDB.find((b) => b.id === activeRecommendBookId);
+      if (book) runBookRecommendationAnalysis(book);
+    });
+
+    reAnalyzeBtn.addEventListener('click', () => {
+      const book = booksDB.find((b) => b.id === activeRecommendBookId);
+      if (book) runBookRecommendationAnalysis(book);
+    });
+
+    // 초기 실행: 최근 문장을 입력한 책제목과 저자를 상단에 표시
+    updateSyncUI();
+    renderAll();
+  </script>
+</body>
+</html>
